@@ -389,8 +389,9 @@ a:focus-visible { outline: 2px solid var(--yellow-dark); outline-offset: 4px; }
 @media (max-width: 480px) {
   .stage { gap: 1.8rem; padding: 5vh 1.25rem 3vh; }
   .logo-wrap { width: 58vw; }
-  .loader.is-shrunk .logo-wrap { transform: scale(.34) translateY(-90vh); }
+  .loader.is-shrunk .logo-wrap { transform: scale(.55) translateY(-67vh); }
   .social-list { gap: 1rem; }
+  .blueprint-lines line { stroke-width: 0.6px; }
 }
 
 /* ---------- MOTION SAFE ---------- */
