@@ -135,11 +135,32 @@
     return lines;
   }
 
+  // pausa extra entre cada grupo de lineas, para que se note que primero se
+  // dibujan las verticales, despues las horizontales y despues las
+  // diagonales -- en vez de una sola tanda continua. Las diagonales son
+  // solo 5 (contra 12 y 10 de las otras tandas), asi que con el mismo
+  // intervalo por linea terminaban de aparecer casi de golpe -- llevan un
+  // intervalo mas largo para que tambien se vean una por una.
+  var GRID_GROUP_GAP = 280;
+  var GRID_GROUP_SIZES = [REAL_X_EDGES.length, REAL_Y_EDGES.length, REAL_DIAGONAL_SEGMENTS.length];
+  var GRID_GROUP_STEP = [16, 16, 70];
+  var GRID_TOTAL_DELAY = GRID_GROUP_SIZES.reduce(function (sum, size, idx) { return sum + size * GRID_GROUP_STEP[idx]; }, 0)
+    + (GRID_GROUP_SIZES.length - 1) * GRID_GROUP_GAP;
+
   function revealBlueprintLines(lines) {
-    lines.forEach(function (line, i) {
-      setTimeout(function () {
-        line.style.strokeDashoffset = "0";
-      }, i * 16);
+    var i = 0;
+    var t = 0;
+    GRID_GROUP_SIZES.forEach(function (size, g) {
+      var step = GRID_GROUP_STEP[g];
+      for (var j = 0; j < size; j++) {
+        (function (line, delay) {
+          setTimeout(function () {
+            line.style.strokeDashoffset = "0";
+          }, delay);
+        })(lines[i], t + j * step);
+        i++;
+      }
+      t += size * step + GRID_GROUP_GAP;
     });
   }
 
@@ -288,9 +309,10 @@
     revealBlueprintLines(lines);
 
     // 2) recien ahi se traza el contorno del logo (lineas finas) -- solo una
-    // pausa corta despues de que termina de armarse la grilla, no hace falta
-    // dejarla mucho tiempo sola antes de arrancar el trazo del logo
-    await sleep(lines.length * 16 + 400);
+    // pausa corta despues de que termina de armarse la grilla (con sus 3
+    // tandas: verticales, horizontales, diagonales), no hace falta dejarla
+    // mucho tiempo sola antes de arrancar el trazo del logo
+    await sleep(GRID_TOTAL_DELAY + 400);
     logoOutline.classList.add("revealed");
 
     // 3) y al final se rellena de amarillo

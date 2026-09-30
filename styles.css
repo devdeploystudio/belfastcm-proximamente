@@ -87,8 +87,8 @@ a:focus-visible { outline: 2px solid var(--yellow-dark); outline-offset: 4px; }
   transition: opacity 1s ease;
 }
 .blueprint-lines line {
-  stroke: #d2d2d2;
-  stroke-width: 1.25px;
+  stroke: #d6d6d6;
+  stroke-width: 0.75px;
   vector-effect: non-scaling-stroke;
   fill: none;
   transition: stroke-dashoffset .75s cubic-bezier(.65,0,.35,1);
@@ -152,7 +152,7 @@ a:focus-visible { outline: 2px solid var(--yellow-dark); outline-offset: 4px; }
 }
 
 .loader.is-shrunk .logo-wrap {
-  transform: scale(.34) translateY(-96vh);
+  transform: scale(.40) translateY(-80vh);
 }
 
 .loader.is-transparent {
@@ -335,9 +335,15 @@ a:focus-visible { outline: 2px solid var(--yellow-dark); outline-offset: 4px; }
   opacity: 1;
   pointer-events: auto;
 }
-.photo-window img.is-active:hover {
-  filter: grayscale(0) contrast(1.05);
-  transform: scale(1.08);
+/* solo en dispositivos con mouse/cursor real -- en touch el navegador puede
+   dejar el :hover "pegado" en el ultimo elemento tocado (no hay forma de
+   "sacar" el mouse de encima), lo que hacia que la ultima foto del loop
+   quedara a color permanentemente en mobile */
+@media (hover: hover) and (pointer: fine) {
+  .photo-window img.is-active:hover {
+    filter: grayscale(0) contrast(1.05);
+    transform: scale(1.08);
+  }
 }
 
 /* ---------- CONTACTO ---------- */
@@ -391,7 +397,7 @@ a:focus-visible { outline: 2px solid var(--yellow-dark); outline-offset: 4px; }
   .logo-wrap { width: 58vw; }
   .loader.is-shrunk .logo-wrap { transform: scale(.55) translateY(-67vh); }
   .social-list { gap: 1rem; }
-  .blueprint-lines line { stroke-width: 0.6px; }
+  .blueprint-lines line { stroke-width: 0.4px; }
 }
 
 /* ---------- MOTION SAFE ---------- */
