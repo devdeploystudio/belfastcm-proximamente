@@ -390,6 +390,20 @@ a:focus-visible { outline: 2px solid var(--yellow-dark); outline-offset: 4px; }
   text-transform: uppercase;
 }
 
+.footer__credit {
+  margin: 1.5rem 0 0;
+  font-family: var(--font-body);
+  font-size: .75rem;
+  color: #8a8a8a;
+}
+.footer__credit a {
+  color: inherit;
+  font-weight: 600;
+}
+.footer__credit a:hover, .footer__credit a:focus-visible {
+  color: var(--ink);
+}
+
 /* ---------- RESPONSIVE ---------- */
 
 @media (max-width: 480px) {

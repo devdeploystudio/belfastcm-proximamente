@@ -2,15 +2,17 @@
   "use strict";
 
   var WORD = "Próximamente";
-  // Fotos de referencia provistas por la clienta como placeholder temporal
-  // (todavia no hay fotos reales de obra) - reemplazar por las definitivas.
+  // Fotos reales de obra provistas por la clienta, en el orden que ella
+  // definio (empezando por la cocina).
   var PHOTOS = [
-    "galeria-01-pileta.jpg",
-    "galeria-02-living.jpg",
-    "galeria-03-spa.jpg",
-    "galeria-04-lounge.jpg",
-    "hero-exterior-atardecer.jpg",
-    "proyecto-01-escalera.jpg"
+    "obra-01-cocina.jpg",
+    "obra-02-luz-sombra.jpg",
+    "obra-03-living.jpg",
+    "obra-04-jardin.jpg",
+    "obra-05-bano.jpg",
+    "obra-06-losa-obra.jpg",
+    "obra-07-pozo-hormigon.jpg",
+    "obra-08-estructura-hormigon.jpg"
   ];
   var reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
@@ -220,7 +222,7 @@
         win.setAttribute("aria-hidden", "true");
         PHOTOS.forEach(function (fileName) {
           var img = document.createElement("img");
-          img.src = "assets_placeholder_photos/" + fileName;
+          img.src = "assets_fotos_obra/" + fileName;
           img.alt = "";
           img.loading = "eager";
           win.appendChild(img);
