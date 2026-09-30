@@ -1,0 +1,343 @@
+(function () {
+  "use strict";
+
+  var WORD = "Próximamente";
+  // Fotos de referencia provistas por la clienta como placeholder temporal
+  // (todavia no hay fotos reales de obra) - reemplazar por las definitivas.
+  var PHOTOS = [
+    "galeria-01-pileta.jpg",
+    "galeria-02-living.jpg",
+    "galeria-03-spa.jpg",
+    "galeria-04-lounge.jpg",
+    "hero-exterior-atardecer.jpg",
+    "proyecto-01-escalera.jpg"
+  ];
+  var reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  var proxText = document.getElementById("proxText");
+  var logoOutline = document.querySelector(".logo-outline");
+  var logoFill = document.querySelector(".logo-fill");
+  var loader = document.getElementById("loader");
+  var logoWrap = document.getElementById("logoWrap");
+  var logoWordmark = document.getElementById("logoWordmark");
+  var blueprintSvg = document.getElementById("blueprintLines");
+  var hero = document.getElementById("hero");
+  var parenRow = document.getElementById("parenRow");
+  var contact = document.getElementById("contact");
+
+  // Grilla de lineas "plano tecnico": coordenadas extraidas por deteccion
+  // automatica de pixeles rojos (OpenCV, columna/fila para las rectas y
+  // Hough transform para las diagonales) directamente sobre las imagenes
+  // de referencia LOGO LOADING ortogonales.png / diagonales.png (1674x1647)
+  // que paso la clienta -- no son valores a ojo.
+  var LOGO_REF_W = 1674, LOGO_REF_H = 1647;
+
+  var REAL_X_EDGES = [431, 512, 598, 614, 679, 687, 799, 808, 862, 939, 1187, 1240];
+  var REAL_Y_EDGES = [588, 661, 671, 731, 742, 851, 879, 929, 995, 1057];
+
+  // Las 5 diagonales reales de la referencia, como segmento (dos puntos)
+  // en vez de angulo+punto -- asi la pendiente sale exacta de la imagen,
+  // sin estimar grados a ojo. Medidas con cortes verticales en varios x
+  // (no solo deteccion Hough) porque dos de ellas pasan a solo ~11px de
+  // distancia entre si (el par casi paralelo que traza el corte diagonal
+  // de la pieza chica del isotipo) y una fusion por angulo las confundia
+  // en una sola linea.
+  var REAL_DIAGONAL_SEGMENTS = [
+    { x1: 50, y1: 468.5, x2: 900, y2: 1422.5 },
+    { x1: 50, y1: 592.5, x2: 1650, y2: 1581.5 },
+    { x1: 50, y1: 922.5, x2: 1300, y2: 157.5 },
+    { x1: 50, y1: 1093.5, x2: 1650, y2: 172.5 },
+    { x1: 50, y1: 1104.5, x2: 1650, y2: 183.5 }
+  ];
+
+  var LINES = REAL_X_EDGES.map(function (x) {
+    return { fx: x / LOGO_REF_W, fy: 0.5, ux: 0, uy: 1 };
+  }).concat(REAL_Y_EDGES.map(function (y) {
+    return { fx: 0.5, fy: y / LOGO_REF_H, ux: 1, uy: 0 };
+  })).concat(REAL_DIAGONAL_SEGMENTS.map(function (d) {
+    return {
+      fx: (d.x1 + d.x2) / 2 / LOGO_REF_W,
+      fy: (d.y1 + d.y2) / 2 / LOGO_REF_H,
+      // direccion sin normalizar en fraccion de ancho/alto -- se escala a
+      // pixeles reales del rect en pantalla en setupBlueprintLines, para
+      // que la pendiente se mantenga correcta sea cual sea el tamano final
+      fdx: (d.x2 - d.x1) / LOGO_REF_W,
+      fdy: (d.y2 - d.y1) / LOGO_REF_H
+    };
+  }));
+
+  function sleep(ms) {
+    return new Promise(function (resolve) { setTimeout(resolve, ms); });
+  }
+
+  function waitForLayout() {
+    return new Promise(function (resolve) {
+      function check() {
+        if (window.innerWidth > 0 && window.innerHeight > 0 && logoWrap.getBoundingClientRect().width > 0) {
+          resolve();
+        } else {
+          requestAnimationFrame(check);
+        }
+      }
+      check();
+    });
+  }
+
+  function setupBlueprintLines() {
+    var vw = window.innerWidth;
+    var vh = window.innerHeight;
+    blueprintSvg.setAttribute("viewBox", "0 0 " + vw + " " + vh);
+    blueprintSvg.innerHTML = "";
+
+    var rect = logoWrap.getBoundingClientRect();
+    var length = Math.hypot(vw, vh) * 0.7;
+    var lines = [];
+
+    LINES.forEach(function (def) {
+      var px = rect.left + def.fx * rect.width;
+      var py = rect.top + def.fy * rect.height;
+
+      // direccion unitaria: las rectas ya la traen fija (0,1)/(1,0); las
+      // diagonales la traen como fraccion de ancho/alto del isotipo y hay
+      // que escalarla al tamano real en pantalla antes de normalizar, para
+      // que la pendiente no se deforme si el logo no es perfectamente
+      // cuadrado en su bounding box renderizado.
+      var ux = def.ux, uy = def.uy;
+      if (ux === undefined) {
+        var ddx = def.fdx * rect.width;
+        var ddy = def.fdy * rect.height;
+        var dlen = Math.hypot(ddx, ddy);
+        ux = ddx / dlen;
+        uy = ddy / dlen;
+      }
+
+      var x1 = px - ux * length;
+      var y1 = py - uy * length;
+      var x2 = px + ux * length;
+      var y2 = py + uy * length;
+
+      // largo exacto calculado (2 * length), sin consultar el DOM -- asi el
+      // dasharray/dashoffset se fija ANTES de insertar la linea y nunca hay
+      // un frame donde se vea la linea completa sin animar (flash al entrar)
+      var segLen = length * 2;
+
+      var line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+      line.setAttribute("x1", x1);
+      line.setAttribute("y1", y1);
+      line.setAttribute("x2", x2);
+      line.setAttribute("y2", y2);
+      line.style.strokeDasharray = segLen;
+      line.style.strokeDashoffset = segLen;
+      blueprintSvg.appendChild(line);
+      lines.push(line);
+    });
+
+    return lines;
+  }
+
+  function revealBlueprintLines(lines) {
+    lines.forEach(function (line, i) {
+      setTimeout(function () {
+        line.style.strokeDashoffset = "0";
+      }, i * 16);
+    });
+  }
+
+  function buildWord() {
+    var frag = document.createDocumentFragment();
+    var oWindowEl = null;
+    var oLetterEl = null;
+    var allLetters = [];
+
+    WORD.split("").forEach(function (ch) {
+      var span = document.createElement("span");
+      span.className = "letter";
+      allLetters.push(span);
+
+      if (ch === "ó" || ch === "Ó") {
+        span.classList.add("letter-o");
+        oLetterEl = span;
+
+        // caracter invisible en flujo normal, solo para reservar el ancho/alto
+        // -- usa la "o" SIN tilde a proposito, ver nota de mas abajo
+        var sizer = document.createElement("span");
+        sizer.className = "o-sizer";
+        sizer.setAttribute("aria-hidden", "true");
+        sizer.textContent = "o";
+        span.appendChild(sizer);
+
+        // la "o"/"O" con tilde no esta en la fuente Demo del cliente: el
+        // navegador arma una version compuesta con la tilde de la fuente de
+        // respaldo, que queda desproporcionada (~40% mas alta) y desalineada
+        // con el resto del cartel. En vez de depender de esa composicion,
+        // se dibuja la "o" (o "O" por el text-transform:uppercase) real de
+        // Degular -- identica a la de las demas letras -- y la tilde se
+        // agrega aparte como una barrita en CSS (.o-accent).
+        ["o-glyph-half o-glyph-half-l", "o-glyph-half o-glyph-half-r"].forEach(function (cls) {
+          var half = document.createElement("span");
+          half.className = cls;
+          half.setAttribute("aria-hidden", "true");
+          var text = document.createElement("span");
+          text.className = "o-glyph-text";
+          text.textContent = "o";
+          half.appendChild(text);
+          span.appendChild(half);
+        });
+
+        var accent = document.createElement("span");
+        accent.className = "o-accent";
+        accent.setAttribute("aria-hidden", "true");
+        span.appendChild(accent);
+
+        var cutLine = document.createElement("span");
+        cutLine.className = "o-cut-line";
+        cutLine.setAttribute("aria-hidden", "true");
+        span.appendChild(cutLine);
+
+        var win = document.createElement("span");
+        win.className = "photo-window";
+        win.setAttribute("aria-hidden", "true");
+        PHOTOS.forEach(function (fileName) {
+          var img = document.createElement("img");
+          img.src = "assets_placeholder_photos/" + fileName;
+          img.alt = "";
+          img.loading = "eager";
+          win.appendChild(img);
+        });
+        span.appendChild(win);
+        oWindowEl = win;
+      } else {
+        span.textContent = ch;
+      }
+      frag.appendChild(span);
+    });
+
+    // letras antes/despues de la o, para que se separen cuando se abren las fotos
+    var oIndex = allLetters.indexOf(oLetterEl);
+    allLetters.forEach(function (span, i) {
+      if (i < oIndex) { span.classList.add("pre-o"); }
+      else if (i > oIndex) { span.classList.add("post-o"); }
+    });
+
+    proxText.appendChild(frag);
+    return oWindowEl;
+  }
+
+  async function runPhotoCycle(windowEl) {
+    var imgs = windowEl.querySelectorAll("img");
+    var letterO = windowEl.closest(".letter-o");
+    var splitEls = document.querySelectorAll(".pre-o, .post-o");
+
+    // 1) aparece el corte al medio de la o -- la palabra sigue completa
+    letterO.classList.add("is-cutting");
+    await sleep(500);
+
+    // 2) recien ahi se "parte": el texto (y los parentesis) se abren a los
+    // costados y se abre la ventana de fotos (rectangular vertical)
+    splitEls.forEach(function (l) { l.classList.add("is-split"); });
+    letterO.classList.add("is-split");
+    parenRow.classList.add("is-split");
+    windowEl.classList.add("is-open");
+    await sleep(750);
+
+    for (var i = 0; i < imgs.length; i++) {
+      imgs.forEach(function (im) { im.classList.remove("is-active"); });
+      imgs[i].classList.add("is-active");
+      await sleep(650);
+    }
+    imgs.forEach(function (im) { im.classList.remove("is-active"); });
+
+    // se cierra en orden inverso: la ventana se achica, el texto vuelve a
+    // su lugar y por ultimo desaparece la linea de corte
+    windowEl.classList.remove("is-open");
+    letterO.classList.remove("is-split");
+    parenRow.classList.remove("is-split");
+    splitEls.forEach(function (l) { l.classList.remove("is-split"); });
+    await sleep(450);
+    letterO.classList.remove("is-cutting");
+    await sleep(350);
+  }
+
+  async function photoLoop(windowEl) {
+    while (true) {
+      await runPhotoCycle(windowEl);
+      await sleep(1800);
+    }
+  }
+
+  async function runSequence() {
+    var oWindowEl = buildWord();
+    await waitForLayout();
+    var lines = setupBlueprintLines();
+
+    if (reducedMotion) {
+      logoOutline.classList.add("revealed");
+      logoFill.classList.add("revealed");
+      logoWordmark.classList.add("revealed");
+      blueprintSvg.classList.add("is-faded");
+      loader.classList.add("is-shrunk", "is-transparent");
+      hero.classList.add("is-visible");
+      parenRow.classList.add("is-open");
+      document.querySelectorAll(".letter").forEach(function (l) { l.classList.add("is-in"); });
+      contact.classList.add("is-visible");
+      return;
+    }
+
+    // 1) primero se dibuja toda la grilla de fondo, sola
+    await sleep(300);
+    revealBlueprintLines(lines);
+
+    // 2) recien ahi se traza el contorno del logo (lineas finas) -- solo una
+    // pausa corta despues de que termina de armarse la grilla, no hace falta
+    // dejarla mucho tiempo sola antes de arrancar el trazo del logo
+    await sleep(lines.length * 16 + 400);
+    logoOutline.classList.add("revealed");
+
+    // 3) y al final se rellena de amarillo
+    await sleep(1600 + 400);
+    logoFill.classList.add("revealed");
+
+    await sleep(900);
+    blueprintSvg.classList.add("is-faded");
+
+    await sleep(600);
+    loader.classList.add("is-shrunk");
+
+    await sleep(1100);
+    loader.classList.add("is-transparent");
+
+    await sleep(300);
+    hero.classList.add("is-visible");
+
+    // el wordmark "BELFAST / Construction Management" (a la distancia real
+    // medida sobre el logo del cliente) aparece recien en la pantalla de
+    // "Proximamente", no apenas el logo sube -- no antes
+    logoWordmark.classList.add("revealed");
+
+    await sleep(200);
+    parenRow.classList.add("is-open");
+
+    // los parentesis terminan de entrar juntitos ("()", sin texto todavia
+    // adentro) a los .7s (ver transition en .paren) y se quedan quietos asi
+    // un toque mas antes de que arranque a tipearse "Proximamente" en medio
+    await sleep(700 + 1000);
+    var letters = document.querySelectorAll(".letter");
+    letters.forEach(function (l, i) {
+      setTimeout(function () { l.classList.add("is-in"); }, i * 45);
+    });
+
+    await sleep(letters.length * 45 + 500);
+    contact.classList.add("is-visible");
+
+    await sleep(500);
+    if (oWindowEl) {
+      photoLoop(oWindowEl);
+    }
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", runSequence);
+  } else {
+    runSequence();
+  }
+})();

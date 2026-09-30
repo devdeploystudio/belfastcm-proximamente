@@ -1,0 +1,13 @@
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editores / herramientas locales
+*.swp
+*.swo
+.vscode/
+.claude/
+
+# Por si en algun momento se suma tooling con dependencias
+node_modules/
