@@ -333,6 +333,25 @@
   // a que porcentaje del trazo empieza el relleno (1 = al terminar el trazo)
   var PIECE_FILL_AT = [1, 1, 1, 1, 0.85];
 
+  // cada pieza se achica y viaja hasta su zona del wordmark (que ya esta en su
+  // lugar final, arriba), de izquierda a derecha, y se desvanece al llegar
+  function convergePieces(paths) {
+    var ISO_LEFT = 433, ISO_RIGHT = 1240;
+    var WM_LEFT = 315, WM_RIGHT = 1359;
+    var WM_CY = 63.5;
+    var SCALE = 0.15;
+    paths.forEach(function (p, i) {
+      var b = p.getBBox();
+      var cx = b.x + b.width / 2;
+      var cy = b.y + b.height / 2;
+      var tx = WM_LEFT + (cx - ISO_LEFT) / (ISO_RIGHT - ISO_LEFT) * (WM_RIGHT - WM_LEFT);
+      p.style.transformOrigin = "0 0";
+      p.style.transition = "transform 1100ms cubic-bezier(.65,0,.35,1) " + (i * 120) + "ms, opacity 400ms ease " + (700 + i * 120) + "ms";
+      p.style.transform = "translate(" + tx + "px," + WM_CY + "px) scale(" + SCALE + ") translate(" + (-cx) + "px," + (-cy) + "px)";
+      p.style.opacity = "0";
+    });
+  }
+
   function drawPieces(paths) {
     var lens = paths.map(function (p) { return p.getTotalLength(); });
     var start = 0;
@@ -387,13 +406,14 @@
     blueprintSvg.classList.add("is-faded");
 
     await sleep(600);
+    // mientras el logo sube y se achica, el isotipo se desvanece y el
+    // wordmark aparece en el mismo movimiento
     loader.classList.add("is-shrunk");
-
-    // el isotipo se desvanece y el wordmark sube a su lugar en el mismo
-    // movimiento, justo cuando termina de achicarse el logo
-    await sleep(1100);
     logoWordmark.classList.add("revealed");
     logoWrap.classList.add("is-wordmark-only");
+    convergePieces(paths);
+
+    await sleep(1100);
     loader.classList.add("is-transparent");
 
     await sleep(300);
