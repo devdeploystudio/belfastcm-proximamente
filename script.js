@@ -28,6 +28,11 @@
 
   // el texto completo ocupa su lugar desde el principio (invisible) asi el
   // bloque no crece ni empuja lo de abajo mientras se tipea
+  // ritmo irregular, como al escribir en una compu
+  function typeDelay(base) {
+    return base * (0.6 + Math.random() * 0.8);
+  }
+
   function typeText(el, text, step) {
     var typed = document.createElement("span");
     var rest = document.createElement("span");
@@ -384,17 +389,15 @@
     await sleep(600);
     loader.classList.add("is-shrunk");
 
+    // el isotipo se desvanece y el wordmark sube a su lugar en el mismo
+    // movimiento, justo cuando termina de achicarse el logo
     await sleep(1100);
+    logoWordmark.classList.add("revealed");
+    logoWrap.classList.add("is-wordmark-only");
     loader.classList.add("is-transparent");
 
     await sleep(300);
     hero.classList.add("is-visible");
-
-    // el wordmark "BELFAST / Construction Management" (a la distancia real
-    // medida sobre el logo del cliente) aparece recien en la pantalla de
-    // "Proximamente", no apenas el logo sube -- no antes
-    logoWordmark.classList.add("revealed");
-    logoWrap.classList.add("is-wordmark-only");
 
     await sleep(200);
     parenRow.classList.add("is-open");
@@ -403,16 +406,18 @@
     // adentro) a los .7s (ver transition en .paren) y se quedan quietos asi
     // un toque mas antes de que arranque a tipearse "Proximamente" en medio
     await sleep(700 + 1000);
-    // tipeo: cada letra aparece de golpe, una tras otra, sin desplazarse
+    // tipeo: cada letra entra con un fundido corto, ritmo irregular
     var TYPE_STEP = 90;
-    letters.forEach(function (l, i) {
+    var typeAt = 500;
+    letters.forEach(function (l) {
+      typeAt += typeDelay(TYPE_STEP);
       setTimeout(function () {
         proxText.appendChild(l);
         l.classList.add("is-in");
-      }, i * TYPE_STEP);
+      }, typeAt);
     });
 
-    await sleep(letters.length * TYPE_STEP + 500);
+    await sleep(typeAt + 500);
     contact.classList.add("is-visible");
     typeText(contactCta, "Contactanos", 90);
 
