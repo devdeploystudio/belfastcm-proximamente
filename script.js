@@ -17,8 +17,6 @@
   var reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
   var proxText = document.getElementById("proxText");
-  var logoOutline = document.querySelector(".logo-outline");
-  var logoFill = document.querySelector(".logo-fill");
   var loader = document.getElementById("loader");
   var logoWrap = document.getElementById("logoWrap");
   var logoWordmark = document.getElementById("logoWordmark");
@@ -26,6 +24,27 @@
   var hero = document.getElementById("hero");
   var parenRow = document.getElementById("parenRow");
   var contact = document.getElementById("contact");
+  var contactCta = document.querySelector(".contact-cta");
+
+  // el texto completo ocupa su lugar desde el principio (invisible) asi el
+  // bloque no crece ni empuja lo de abajo mientras se tipea
+  function typeText(el, text, step) {
+    var typed = document.createElement("span");
+    var rest = document.createElement("span");
+    rest.style.visibility = "hidden";
+    el.textContent = "";
+    el.appendChild(typed);
+    el.appendChild(rest);
+    var i = 0;
+    (function next() {
+      typed.textContent = text.slice(0, i);
+      rest.textContent = text.slice(i);
+      if (i < text.length) {
+        i++;
+        setTimeout(next, step);
+      }
+    })();
+  }
 
   // Grilla de lineas "plano tecnico": coordenadas extraidas por deteccion
   // automatica de pixeles rojos (OpenCV, columna/fila para las rectas y
@@ -242,8 +261,7 @@
       else if (i > oIndex) { span.classList.add("post-o"); }
     });
 
-    proxText.appendChild(frag);
-    return oWindowEl;
+    return { oWindowEl: oWindowEl, letters: allLetters };
   }
 
   async function runPhotoCycle(windowEl) {
@@ -288,21 +306,64 @@
     }
   }
 
+  // piezas del isotipo (isotipo-loading.svg) de izquierda a derecha: cada una
+  // dibuja su contorno y despues se pinta de amarillo
+  function loadPieces() {
+    return fetch("isotipo-loading.svg")
+      .then(function (r) { return r.text(); })
+      .then(function (txt) {
+        var doc = new DOMParser().parseFromString(txt, "image/svg+xml");
+        var svg = document.importNode(doc.documentElement, true);
+        svg.setAttribute("class", "isotipo-piezas");
+        svg.setAttribute("aria-hidden", "true");
+        logoWrap.insertBefore(svg, logoWrap.firstChild);
+        return Array.prototype.slice.call(svg.querySelectorAll("path"));
+      });
+  }
+
+  // velocidad de dibujo (px del svg por ms) y duracion del relleno, una por
+  // pieza, de izquierda a derecha
+  var PIECE_SPEED = [0.9, 0.9, 0.9, 0.9, 1.82];
+  var PIECE_FILL = [900, 900, 900, 900, 450];
+  // a que porcentaje del trazo empieza el relleno (1 = al terminar el trazo)
+  var PIECE_FILL_AT = [1, 1, 1, 1, 0.85];
+
+  function drawPieces(paths) {
+    var lens = paths.map(function (p) { return p.getTotalLength(); });
+    var start = 0;
+    var lastDrawEnd = 0;
+    return new Promise(function (resolve) {
+      paths.forEach(function (p, i) {
+        var draw = lens[i] / PIECE_SPEED[i];
+        p.style.transition = "stroke-dashoffset " + Math.round(draw) + "ms linear, fill " + PIECE_FILL[i] + "ms ease, stroke " + PIECE_FILL[i] + "ms ease";
+        setTimeout(function () { p.classList.add("drawn"); }, start);
+        setTimeout(function () { p.classList.add("filled"); }, start + draw * PIECE_FILL_AT[i]);
+        lastDrawEnd = Math.max(lastDrawEnd, start + draw);
+        start += draw * 0.6;
+      });
+      setTimeout(resolve, lastDrawEnd);
+    });
+  }
+
   async function runSequence() {
-    var oWindowEl = buildWord();
+    var built = buildWord();
+    var oWindowEl = built.oWindowEl;
+    var letters = built.letters;
     await waitForLayout();
     var lines = setupBlueprintLines();
 
     if (reducedMotion) {
-      logoOutline.classList.add("revealed");
-      logoFill.classList.add("revealed");
       logoWordmark.classList.add("revealed");
+      logoWrap.classList.add("is-wordmark-only");
       blueprintSvg.classList.add("is-faded");
       loader.classList.add("is-shrunk", "is-transparent");
       hero.classList.add("is-visible");
       parenRow.classList.add("is-open");
-      document.querySelectorAll(".letter").forEach(function (l) { l.classList.add("is-in"); });
+      letters.forEach(function (l) { proxText.appendChild(l); l.classList.add("is-in"); });
       contact.classList.add("is-visible");
+      loadPieces().then(function (paths) {
+        paths.forEach(function (p) { p.classList.add("drawn", "filled"); });
+      });
       return;
     }
 
@@ -315,13 +376,9 @@
     // tandas: verticales, horizontales, diagonales), no hace falta dejarla
     // mucho tiempo sola antes de arrancar el trazo del logo
     await sleep(GRID_TOTAL_DELAY + 400);
-    logoOutline.classList.add("revealed");
+    var paths = await loadPieces();
+    await drawPieces(paths);
 
-    // 3) y al final se rellena de amarillo
-    await sleep(1600 + 400);
-    logoFill.classList.add("revealed");
-
-    await sleep(900);
     blueprintSvg.classList.add("is-faded");
 
     await sleep(600);
@@ -337,6 +394,7 @@
     // medida sobre el logo del cliente) aparece recien en la pantalla de
     // "Proximamente", no apenas el logo sube -- no antes
     logoWordmark.classList.add("revealed");
+    logoWrap.classList.add("is-wordmark-only");
 
     await sleep(200);
     parenRow.classList.add("is-open");
@@ -345,13 +403,18 @@
     // adentro) a los .7s (ver transition en .paren) y se quedan quietos asi
     // un toque mas antes de que arranque a tipearse "Proximamente" en medio
     await sleep(700 + 1000);
-    var letters = document.querySelectorAll(".letter");
+    // tipeo: cada letra aparece de golpe, una tras otra, sin desplazarse
+    var TYPE_STEP = 90;
     letters.forEach(function (l, i) {
-      setTimeout(function () { l.classList.add("is-in"); }, i * 45);
+      setTimeout(function () {
+        proxText.appendChild(l);
+        l.classList.add("is-in");
+      }, i * TYPE_STEP);
     });
 
-    await sleep(letters.length * 45 + 500);
+    await sleep(letters.length * TYPE_STEP + 500);
     contact.classList.add("is-visible");
+    typeText(contactCta, "Contactanos", 90);
 
     await sleep(500);
     if (oWindowEl) {
