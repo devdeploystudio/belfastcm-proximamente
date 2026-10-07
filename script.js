@@ -337,7 +337,7 @@
   // lugar final, arriba), de izquierda a derecha, y se desvanece al llegar
   function convergePieces(paths) {
     var ISO_LEFT = 433, ISO_RIGHT = 1240;
-    var WM_LEFT = 315, WM_RIGHT = 1359;
+    var WM_LEFT = 84, WM_RIGHT = 1590;
     var WM_CY = 63.5;
     var SCALE = 0.15;
     paths.forEach(function (p, i) {
