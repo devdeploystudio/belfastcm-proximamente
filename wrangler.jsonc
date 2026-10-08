@@ -3,7 +3,7 @@
   "name": "belfastcm-proximamente",
   "compatibility_date": "2026-10-07",
   "assets": {
-    "directory": ".",
+    "directory": "public",
     "not_found_handling": "404-page" // sirve 404.html en rutas que no existen
   }
 }
