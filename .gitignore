@@ -8,6 +8,7 @@ desktop.ini
 *.swo
 .vscode/
 .claude/
+.impeccable/
 
 # Por si en algun momento se suma tooling con dependencias
 node_modules/
