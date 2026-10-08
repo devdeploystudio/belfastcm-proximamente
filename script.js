@@ -1,7 +1,10 @@
 (function () {
   "use strict";
 
-  var WORD = "Próximamente";
+  // otras pantallas (ej. 404.html) pueden pisar esta palabra antes de cargar
+  // este script, seteando window.PROX_WORD -- asi reusan toda la secuencia
+  // (grilla, piezas del logo, tipeo) sin duplicar nada
+  var WORD = window.PROX_WORD || "Próximamente";
   // Fotos reales de obra provistas por la clienta, en el orden que ella
   // definio (empezando por la cocina).
   var PHOTOS = [
@@ -439,7 +442,7 @@
 
     await sleep(typeAt + 500);
     contact.classList.add("is-visible");
-    typeText(contactCta, "Contactanos", 90);
+    typeText(contactCta, window.PROX_CTA || "Contactanos", 90);
 
     await sleep(500);
     if (oWindowEl) {
