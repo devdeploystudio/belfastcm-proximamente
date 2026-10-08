@@ -423,6 +423,7 @@ a:focus-visible { outline: 2px solid var(--yellow-dark); outline-offset: 4px; }
   .stage { padding: 0 1.25rem; }
   .logo-wrap { width: 58vw; }
   .loader.is-shrunk .logo-wrap { transform: scale(.55) translateY(-48.5vh); }
+  .logo-wrap.is-wordmark-only .logo-wordmark { width: 100%; }
   .social-list { gap: 1rem; }
   .blueprint-lines line { stroke-width: 0.4px; }
   .contact { top: calc(50% + min(10rem, 13.5svh) + 7.3svh); }
